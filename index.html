@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Drawing App</title>
+  <title>Drawing App with Eraser</title>
   <style>
     body {
       text-align: center;
@@ -19,6 +19,16 @@
       background: #fff;
       cursor: crosshair;
     }
+    button {
+      margin-left: 5px;
+      padding: 5px 10px;
+      font-size: 16px;
+    }
+    button.active {
+      background-color: #007bff;
+      color: white;
+      border: none;
+    }
   </style>
 </head>
 <body>
@@ -28,9 +38,12 @@
     
     <label for="brushSize">Brush Size:</label>
     <input type="range" id="brushSize" min="1" max="50" value="5" />
-    
+
+    <button id="drawBtn" class="active">Draw</button>
+    <button id="eraserBtn">Eraser</button>
     <button id="clearBtn">Clear</button>
   </div>
+  
   <canvas id="drawingCanvas" width="800" height="500"></canvas>
 
   <script>
@@ -38,8 +51,12 @@
     const ctx = canvas.getContext('2d');
 
     let isDrawing = false;
+    let mode = 'draw'; // 'draw' or 'eraser'
     let color = document.getElementById('colorPicker').value;
     let brushSize = document.getElementById('brushSize').value;
+
+    const drawBtn = document.getElementById('drawBtn');
+    const eraserBtn = document.getElementById('eraserBtn');
 
     canvas.addEventListener('mousedown', startDrawing);
     canvas.addEventListener('mouseup', stopDrawing);
@@ -58,14 +75,28 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
+    drawBtn.addEventListener('click', () => {
+      mode = 'draw';
+      drawBtn.classList.add('active');
+      eraserBtn.classList.remove('active');
+      canvas.style.cursor = 'crosshair';
+    });
+
+    eraserBtn.addEventListener('click', () => {
+      mode = 'eraser';
+      eraserBtn.classList.add('active');
+      drawBtn.classList.remove('active');
+      canvas.style.cursor = 'cell';
+    });
+
     function startDrawing(e) {
       isDrawing = true;
-      draw(e); // Draw immediately
+      draw(e);
     }
 
     function stopDrawing() {
       isDrawing = false;
-      ctx.beginPath(); // Reset the path
+      ctx.beginPath();
     }
 
     function draw(e) {
@@ -73,7 +104,15 @@
 
       ctx.lineWidth = brushSize;
       ctx.lineCap = 'round';
-      ctx.strokeStyle = color;
+
+      if (mode === 'draw') {
+        ctx.strokeStyle = color;
+        ctx.globalCompositeOperation = 'source-over';
+      } else if (mode === 'eraser') {
+        // Eraser draws with white color (background)
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.strokeStyle = 'rgba(0,0,0,1)'; // Color doesn't matter here
+      }
 
       ctx.lineTo(e.offsetX, e.offsetY);
       ctx.stroke();
