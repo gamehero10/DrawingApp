@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Drawing App with Eraser</title>
+  <title>Drawing App with Eraser and Shapes</title>
   <style>
     body {
       text-align: center;
@@ -41,6 +41,8 @@
 
     <button id="drawBtn" class="active">Draw</button>
     <button id="eraserBtn">Eraser</button>
+    <button id="rectBtn">Rectangle</button>
+    <button id="circleBtn">Circle</button>
     <button id="clearBtn">Clear</button>
   </div>
   
@@ -51,12 +53,22 @@
     const ctx = canvas.getContext('2d');
 
     let isDrawing = false;
-    let mode = 'draw'; // 'draw' or 'eraser'
+    let mode = 'draw'; // 'draw', 'eraser', 'rect', 'circle'
     let color = document.getElementById('colorPicker').value;
     let brushSize = document.getElementById('brushSize').value;
 
     const drawBtn = document.getElementById('drawBtn');
     const eraserBtn = document.getElementById('eraserBtn');
+    const rectBtn = document.getElementById('rectBtn');
+    const circleBtn = document.getElementById('circleBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    // To store canvas snapshot for shape preview during drag
+    let savedImageData = null;
+
+    // Starting point for shapes
+    let startX = 0;
+    let startY = 0;
 
     canvas.addEventListener('mousedown', startDrawing);
     canvas.addEventListener('mouseup', stopDrawing);
@@ -71,53 +83,122 @@
       brushSize = e.target.value;
     });
 
-    document.getElementById('clearBtn').addEventListener('click', () => {
+    clearBtn.addEventListener('click', () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
-    drawBtn.addEventListener('click', () => {
-      mode = 'draw';
-      drawBtn.classList.add('active');
-      eraserBtn.classList.remove('active');
-      canvas.style.cursor = 'crosshair';
-    });
+    drawBtn.addEventListener('click', () => setMode('draw', 'crosshair'));
+    eraserBtn.addEventListener('click', () => setMode('eraser', 'cell'));
+    rectBtn.addEventListener('click', () => setMode('rect', 'crosshair'));
+    circleBtn.addEventListener('click', () => setMode('circle', 'crosshair'));
 
-    eraserBtn.addEventListener('click', () => {
-      mode = 'eraser';
-      eraserBtn.classList.add('active');
-      drawBtn.classList.remove('active');
-      canvas.style.cursor = 'cell';
-    });
+    function setMode(newMode, cursorStyle) {
+      mode = newMode;
+      [drawBtn, eraserBtn, rectBtn, circleBtn].forEach(btn => btn.classList.remove('active'));
+      if (mode === 'draw') drawBtn.classList.add('active');
+      else if (mode === 'eraser') eraserBtn.classList.add('active');
+      else if (mode === 'rect') rectBtn.classList.add('active');
+      else if (mode === 'circle') circleBtn.classList.add('active');
+      canvas.style.cursor = cursorStyle;
+    }
 
     function startDrawing(e) {
       isDrawing = true;
-      draw(e);
+      startX = e.offsetX;
+      startY = e.offsetY;
+
+      if (mode === 'draw' || mode === 'eraser') {
+        draw(e);
+      } else if (mode === 'rect' || mode === 'circle') {
+        // Save canvas state so we can restore on each mousemove for preview
+        savedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      }
     }
 
-    function stopDrawing() {
+    function stopDrawing(e) {
+      if (!isDrawing) return;
       isDrawing = false;
+
+      if (mode === 'rect') {
+        drawRectangle(startX, startY, e.offsetX, e.offsetY, true);
+      } else if (mode === 'circle') {
+        drawCircle(startX, startY, e.offsetX, e.offsetY, true);
+      }
+
       ctx.beginPath();
     }
 
     function draw(e) {
       if (!isDrawing) return;
 
-      ctx.lineWidth = brushSize;
-      ctx.lineCap = 'round';
+      if (mode === 'draw' || mode === 'eraser') {
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
 
-      if (mode === 'draw') {
-        ctx.strokeStyle = color;
-        ctx.globalCompositeOperation = 'source-over';
-      } else if (mode === 'eraser') {
-        // Eraser draws with white color (background)
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)'; // Color doesn't matter here
+        if (mode === 'draw') {
+          ctx.strokeStyle = color;
+          ctx.globalCompositeOperation = 'source-over';
+        } else if (mode === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+        }
+
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(e.offsetX, e.offsetY);
+
+      } else if (mode === 'rect') {
+        // Restore saved canvas state
+        ctx.putImageData(savedImageData, 0, 0);
+        drawRectangle(startX, startY, e.offsetX, e.offsetY, false);
+
+      } else if (mode === 'circle') {
+        ctx.putImageData(savedImageData, 0, 0);
+        drawCircle(startX, startY, e.offsetX, e.offsetY, false);
       }
+    }
 
-      ctx.lineTo(e.offsetX, e.offsetY);
-      ctx.stroke();
+    function drawRectangle(x1, y1, x2, y2, finalize) {
+      const rectX = Math.min(x1, x2);
+      const rectY = Math.min(y1, y2);
+      const rectWidth = Math.abs(x2 - x1);
+      const rectHeight = Math.abs(y2 - y1);
+
+      ctx.lineWidth = brushSize;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+
+      if (finalize) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.setLineDash([6]);
+        ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+        ctx.setLineDash([]);
+      }
+    }
+
+    function drawCircle(x1, y1, x2, y2, finalize) {
+      const radius = Math.sqrt((x2 - x1)**2 + (y2 - y1)**2);
+
+      ctx.lineWidth = brushSize;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+
       ctx.beginPath();
-      ctx.moveTo(e.offsetX, e.offsetY);
+      ctx.arc(x1, y1, radius, 0, Math.PI * 2);
+
+      if (finalize) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.stroke();
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.setLineDash([6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
   </script>
 </body>
