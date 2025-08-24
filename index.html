@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Robust Drawing App</title>
+  <title>Drawing App</title>
   <style>
     body {
       text-align: center;
@@ -16,6 +16,10 @@
     }
     #toolbar {
       margin: 10px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     canvas {
       border: 1px solid #000;
@@ -24,9 +28,9 @@
       touch-action: none;
     }
     button {
-      margin-left: 5px;
       padding: 5px 10px;
       font-size: 16px;
+      cursor: pointer;
     }
     button.active {
       background-color: #007bff;
@@ -48,6 +52,7 @@
     <button id="rectBtn">Rectangle</button>
     <button id="circleBtn">Circle</button>
     <button id="clearBtn">Clear</button>
+    <button id="saveBtn">Save</button>
   </div>
   
   <canvas id="drawingCanvas" width="800" height="500"></canvas>
@@ -62,7 +67,7 @@
     }
 
     let isDrawing = false;
-    let mode = 'draw'; // 'draw', 'eraser', 'rect', 'circle'
+    let mode = 'draw';
     let color = document.getElementById('colorPicker').value;
     let brushSize = document.getElementById('brushSize').value;
 
@@ -71,6 +76,7 @@
     const rectBtn = document.getElementById('rectBtn');
     const circleBtn = document.getElementById('circleBtn');
     const clearBtn = document.getElementById('clearBtn');
+    const saveBtn = document.getElementById('saveBtn');
 
     let savedImageData = null;
     let startX = 0;
@@ -207,80 +213,44 @@
       }
     }
 
-    // Mouse
+    // Mouse Events
     canvas.addEventListener('mousedown', e => {
-      try {
-        const pos = getPointerPos(e);
-        startDrawing(pos.x, pos.y);
-      } catch (err) {
-        console.error("mousedown error:", err);
-      }
+      const pos = getPointerPos(e);
+      startDrawing(pos.x, pos.y);
     });
 
     canvas.addEventListener('mousemove', e => {
-      try {
-        const pos = getPointerPos(e);
-        draw(pos.x, pos.y);
-      } catch (err) {
-        console.error("mousemove error:", err);
-      }
+      const pos = getPointerPos(e);
+      draw(pos.x, pos.y);
     });
 
     canvas.addEventListener('mouseup', e => {
-      try {
-        const pos = getPointerPos(e);
-        stopDrawing(pos.x, pos.y);
-      } catch (err) {
-        console.error("mouseup error:", err);
-      }
+      const pos = getPointerPos(e);
+      stopDrawing(pos.x, pos.y);
     });
 
-    canvas.addEventListener('mouseout', () => {
-      try {
-        stopDrawing();
-      } catch (err) {
-        console.error("mouseout error:", err);
-      }
-    });
+    canvas.addEventListener('mouseout', () => stopDrawing());
 
-    // Touch
+    // Touch Events
     canvas.addEventListener('touchstart', e => {
-      try {
-        const pos = getPointerPos(e);
-        startDrawing(pos.x, pos.y);
-        e.preventDefault();
-      } catch (err) {
-        console.error("touchstart error:", err);
-      }
+      const pos = getPointerPos(e);
+      startDrawing(pos.x, pos.y);
+      e.preventDefault();
     }, { passive: false });
 
     canvas.addEventListener('touchmove', e => {
-      try {
-        const pos = getPointerPos(e);
-        draw(pos.x, pos.y);
-        e.preventDefault();
-      } catch (err) {
-        console.error("touchmove error:", err);
-      }
+      const pos = getPointerPos(e);
+      draw(pos.x, pos.y);
+      e.preventDefault();
     }, { passive: false });
 
     canvas.addEventListener('touchend', e => {
-      try {
-        const pos = getPointerPos(e.changedTouches[0]);
-        stopDrawing(pos.x, pos.y);
-        e.preventDefault();
-      } catch (err) {
-        console.error("touchend error:", err);
-      }
+      const pos = getPointerPos(e.changedTouches[0]);
+      stopDrawing(pos.x, pos.y);
+      e.preventDefault();
     }, { passive: false });
 
-    canvas.addEventListener('touchcancel', () => {
-      try {
-        stopDrawing();
-      } catch (err) {
-        console.error("touchcancel error:", err);
-      }
-    }, { passive: false });
+    canvas.addEventListener('touchcancel', () => stopDrawing(), { passive: false });
 
     // UI Controls
     document.getElementById('colorPicker').addEventListener('input', (e) => {
@@ -299,6 +269,18 @@
       }
     });
 
+    saveBtn.addEventListener('click', () => {
+      try {
+        const link = document.createElement('a');
+        link.download = 'drawing.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (err) {
+        console.error("Save error:", err);
+        alert("Failed to save image.");
+      }
+    });
+
     drawBtn.addEventListener('click', () => setMode('draw', 'crosshair'));
     eraserBtn.addEventListener('click', () => setMode('eraser', 'cell'));
     rectBtn.addEventListener('click', () => setMode('rect', 'crosshair'));
@@ -306,4 +288,3 @@
   </script>
 </body>
 </html>
-
