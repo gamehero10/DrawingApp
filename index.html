@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Optimized Drawing App</title>
+  <title>Robust Drawing App</title>
   <style>
     body {
       text-align: center;
@@ -56,6 +56,11 @@
     const canvas = document.getElementById('drawingCanvas');
     const ctx = canvas.getContext('2d');
 
+    if (!canvas || !ctx) {
+      alert("Your browser does not support HTML5 canvas.");
+      throw new Error("Canvas not supported.");
+    }
+
     let isDrawing = false;
     let mode = 'draw'; // 'draw', 'eraser', 'rect', 'circle'
     let color = document.getElementById('colorPicker').value;
@@ -71,19 +76,23 @@
     let startX = 0;
     let startY = 0;
 
-    // Helpers
     function getPointerPos(e) {
-      const rect = canvas.getBoundingClientRect();
-      if (e.touches && e.touches.length > 0) {
+      try {
+        const rect = canvas.getBoundingClientRect();
+        if (e.touches && e.touches.length > 0) {
+          return {
+            x: e.touches[0].clientX - rect.left,
+            y: e.touches[0].clientY - rect.top
+          };
+        }
         return {
-          x: e.touches[0].clientX - rect.left,
-          y: e.touches[0].clientY - rect.top
+          x: e.offsetX,
+          y: e.offsetY
         };
+      } catch (err) {
+        console.error("Error getting pointer position:", err);
+        return { x: 0, y: 0 };
       }
-      return {
-        x: e.offsetX,
-        y: e.offsetY
-      };
     }
 
     function setMode(newMode, cursorStyle) {
@@ -97,134 +106,204 @@
     }
 
     function setupContext() {
-      ctx.lineWidth = brushSize;
-      ctx.lineCap = 'round';
-      if (mode === 'draw') {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = color;
-      } else if (mode === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1)';
-      } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = color;
+      try {
+        ctx.lineWidth = brushSize;
+        ctx.lineCap = 'round';
+        if (mode === 'draw') {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = color;
+        } else if (mode === 'eraser') {
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.strokeStyle = 'rgba(0,0,0,1)';
+        } else {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.strokeStyle = color;
+        }
+      } catch (err) {
+        console.error("Error setting up context:", err);
       }
     }
 
-    // Event handlers
     function startDrawing(x, y) {
-      isDrawing = true;
-      startX = x;
-      startY = y;
-      if (mode === 'draw' || mode === 'eraser') {
-        setupContext();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-      } else if (mode === 'rect' || mode === 'circle') {
-        savedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      try {
+        isDrawing = true;
+        startX = x;
+        startY = y;
+
+        if (mode === 'draw' || mode === 'eraser') {
+          setupContext();
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+        } else if (mode === 'rect' || mode === 'circle') {
+          savedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        }
+      } catch (err) {
+        console.error("Error in startDrawing:", err);
       }
     }
 
     function stopDrawing(x = null, y = null) {
-      if (!isDrawing) return;
-      isDrawing = false;
-      if (mode === 'rect' && x !== null && y !== null) {
-        drawRectangle(startX, startY, x, y, true);
-      } else if (mode === 'circle' && x !== null && y !== null) {
-        drawCircle(startX, startY, x, y, true);
+      try {
+        if (!isDrawing) return;
+        isDrawing = false;
+        if (mode === 'rect' && x !== null && y !== null) {
+          drawRectangle(startX, startY, x, y, true);
+        } else if (mode === 'circle' && x !== null && y !== null) {
+          drawCircle(startX, startY, x, y, true);
+        }
+        ctx.beginPath();
+      } catch (err) {
+        console.error("Error in stopDrawing:", err);
       }
-      ctx.beginPath();
     }
 
     function draw(x, y) {
-      if (!isDrawing) return;
-      setupContext();
+      try {
+        if (!isDrawing) return;
+        setupContext();
 
-      if (mode === 'draw' || mode === 'eraser') {
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-      } else if (mode === 'rect') {
-        ctx.putImageData(savedImageData, 0, 0);
-        drawRectangle(startX, startY, x, y, false);
-      } else if (mode === 'circle') {
-        ctx.putImageData(savedImageData, 0, 0);
-        drawCircle(startX, startY, x, y, false);
+        if (mode === 'draw' || mode === 'eraser') {
+          ctx.lineTo(x, y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+        } else if (mode === 'rect') {
+          ctx.putImageData(savedImageData, 0, 0);
+          drawRectangle(startX, startY, x, y, false);
+        } else if (mode === 'circle') {
+          ctx.putImageData(savedImageData, 0, 0);
+          drawCircle(startX, startY, x, y, false);
+        }
+      } catch (err) {
+        console.error("Error in draw():", err);
       }
     }
 
-    // Shape functions
     function drawRectangle(x1, y1, x2, y2, finalize) {
-      const rectX = Math.min(x1, x2);
-      const rectY = Math.min(y1, y2);
-      const rectW = Math.abs(x2 - x1);
-      const rectH = Math.abs(y2 - y1);
+      try {
+        const rectX = Math.min(x1, x2);
+        const rectY = Math.min(y1, y2);
+        const rectW = Math.abs(x2 - x1);
+        const rectH = Math.abs(y2 - y1);
 
-      if (!finalize) ctx.setLineDash([6]);
-      ctx.strokeRect(rectX, rectY, rectW, rectH);
-      if (!finalize) ctx.setLineDash([]);
+        if (!finalize) ctx.setLineDash([6]);
+        ctx.strokeRect(rectX, rectY, rectW, rectH);
+        if (!finalize) ctx.setLineDash([]);
+      } catch (err) {
+        console.error("Error drawing rectangle:", err);
+      }
     }
 
     function drawCircle(x1, y1, x2, y2, finalize) {
-      const radius = Math.sqrt((x2 - x1)**2 + (y2 - y1)**2);
-      ctx.beginPath();
-      ctx.arc(x1, y1, radius, 0, Math.PI * 2);
-      if (!finalize) ctx.setLineDash([6]);
-      ctx.stroke();
-      if (!finalize) ctx.setLineDash([]);
+      try {
+        const radius = Math.sqrt((x2 - x1)**2 + (y2 - y1)**2);
+        ctx.beginPath();
+        ctx.arc(x1, y1, radius, 0, Math.PI * 2);
+        if (!finalize) ctx.setLineDash([6]);
+        ctx.stroke();
+        if (!finalize) ctx.setLineDash([]);
+      } catch (err) {
+        console.error("Error drawing circle:", err);
+      }
     }
 
     // Mouse
     canvas.addEventListener('mousedown', e => {
-      const pos = getPointerPos(e);
-      startDrawing(pos.x, pos.y);
+      try {
+        const pos = getPointerPos(e);
+        startDrawing(pos.x, pos.y);
+      } catch (err) {
+        console.error("mousedown error:", err);
+      }
     });
+
     canvas.addEventListener('mousemove', e => {
-      const pos = getPointerPos(e);
-      draw(pos.x, pos.y);
+      try {
+        const pos = getPointerPos(e);
+        draw(pos.x, pos.y);
+      } catch (err) {
+        console.error("mousemove error:", err);
+      }
     });
+
     canvas.addEventListener('mouseup', e => {
-      const pos = getPointerPos(e);
-      stopDrawing(pos.x, pos.y);
+      try {
+        const pos = getPointerPos(e);
+        stopDrawing(pos.x, pos.y);
+      } catch (err) {
+        console.error("mouseup error:", err);
+      }
     });
-    canvas.addEventListener('mouseout', () => stopDrawing());
+
+    canvas.addEventListener('mouseout', () => {
+      try {
+        stopDrawing();
+      } catch (err) {
+        console.error("mouseout error:", err);
+      }
+    });
 
     // Touch
     canvas.addEventListener('touchstart', e => {
-      const pos = getPointerPos(e);
-      startDrawing(pos.x, pos.y);
-      e.preventDefault();
+      try {
+        const pos = getPointerPos(e);
+        startDrawing(pos.x, pos.y);
+        e.preventDefault();
+      } catch (err) {
+        console.error("touchstart error:", err);
+      }
     }, { passive: false });
 
     canvas.addEventListener('touchmove', e => {
-      const pos = getPointerPos(e);
-      draw(pos.x, pos.y);
-      e.preventDefault();
+      try {
+        const pos = getPointerPos(e);
+        draw(pos.x, pos.y);
+        e.preventDefault();
+      } catch (err) {
+        console.error("touchmove error:", err);
+      }
     }, { passive: false });
 
     canvas.addEventListener('touchend', e => {
-      const pos = getPointerPos(e.changedTouches[0]);
-      stopDrawing(pos.x, pos.y);
-      e.preventDefault();
+      try {
+        const pos = getPointerPos(e.changedTouches[0]);
+        stopDrawing(pos.x, pos.y);
+        e.preventDefault();
+      } catch (err) {
+        console.error("touchend error:", err);
+      }
     }, { passive: false });
 
-    canvas.addEventListener('touchcancel', () => stopDrawing(), { passive: false });
+    canvas.addEventListener('touchcancel', () => {
+      try {
+        stopDrawing();
+      } catch (err) {
+        console.error("touchcancel error:", err);
+      }
+    }, { passive: false });
 
-    // UI controls
+    // UI Controls
     document.getElementById('colorPicker').addEventListener('input', (e) => {
       color = e.target.value;
     });
+
     document.getElementById('brushSize').addEventListener('input', (e) => {
       brushSize = e.target.value;
     });
+
     clearBtn.addEventListener('click', () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      try {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      } catch (err) {
+        console.error("Clear canvas error:", err);
+      }
     });
+
     drawBtn.addEventListener('click', () => setMode('draw', 'crosshair'));
     eraserBtn.addEventListener('click', () => setMode('eraser', 'cell'));
     rectBtn.addEventListener('click', () => setMode('rect', 'crosshair'));
     circleBtn.addEventListener('click', () => setMode('circle', 'crosshair'));
   </script>
 </body>
-</html> 
+</html>
+
